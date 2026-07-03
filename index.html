@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>#tracker · dashboard public</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;700&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  :root{
+    --bg:#0D0D14; --panel:#15151F; --panel2:#1C1C2A; --line:#26263A;
+    --text:#EDEBF5; --muted:#7E7B96;
+    --grad-a:#E1306C; --grad-b:#F77737;
+    --up:#26A69A; --down:#EF5350;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:
+    radial-gradient(1200px 600px at 80% -10%, rgba(225,48,108,.10), transparent 60%),
+    radial-gradient(900px 500px at 0% 0%, rgba(247,119,55,.07), transparent 55%),
+    var(--bg);
+    color:var(--text);font-family:'Outfit',sans-serif;min-height:100vh;padding:clamp(14px,3vw,40px)}
+  .wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+
+  header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:4px}
+  .logo{font-family:'Unbounded',sans-serif;font-weight:700;font-size:22px;
+    background:linear-gradient(90deg,var(--grad-a),var(--grad-b));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .tagline{color:var(--muted);font-size:13px;font-weight:300}
+  .status{margin-left:auto;display:flex;align-items:center;gap:8px;
+    font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--up);box-shadow:0 0 8px var(--up)}
+  .dot.off{background:var(--muted);box-shadow:none}
+
+  .msg{font-size:13px;min-height:0} .msg.err{color:var(--down)} .msg.info{color:var(--muted)}
+  .msg:empty{display:none}
+
+  .tags{display:flex;gap:7px;flex-wrap:wrap}
+  .tags button{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    color:var(--muted);cursor:pointer;font-family:'JetBrains Mono',monospace;
+    font-size:13px;font-weight:600;padding:9px 14px;transition:.15s}
+  .tags button:hover{color:var(--text)}
+  .tags button.on{color:#fff;background:linear-gradient(135deg,var(--grad-a),var(--grad-b));border-color:transparent}
+
+  .hero{display:flex;align-items:flex-end;gap:18px;flex-wrap:wrap}
+  .hero .sym{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600}
+  .hero .price{font-family:'Unbounded',sans-serif;font-weight:700;font-size:clamp(30px,7vw,52px);
+    line-height:1;background:linear-gradient(90deg,var(--grad-a),var(--grad-b));
+    -webkit-background-clip:text;background-clip:text;color:transparent;font-variant-numeric:tabular-nums}
+  .hero .chg{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;padding-bottom:4px}
+  .pos{color:var(--up)} .neg{color:var(--down)} .flat{color:var(--muted)}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:11px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 15px}
+  .stat .k{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+  .stat .v{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:500}
+  .stat .v small{font-size:11px;color:var(--muted);font-weight:400}
+
+  .toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .tf{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .tf button{background:none;border:none;color:var(--muted);cursor:pointer;
+    font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;padding:9px 12px}
+  .tf button:hover{color:var(--text)}
+  .tf button.on{color:#fff;background:linear-gradient(135deg,var(--grad-a),var(--grad-b))}
+  .ctype{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .ctype button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:9px 13px;font-family:'Outfit'}
+  .ctype button.on{color:var(--text);background:var(--panel2)}
+
+  .chartbox{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px;position:relative}
+  #chart{height:420px}
+  .empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:var(--muted);font-size:14px;text-align:center;padding:20px;z-index:5;background:var(--panel);border-radius:14px}
+
+  .section-title{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+    font-weight:600;margin-top:6px}
+  table{width:100%;border-collapse:collapse;background:var(--panel);
+    border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  thead th{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);
+    text-align:left;padding:11px 15px;border-bottom:1px solid var(--line);font-weight:600}
+  th.num,td.num{text-align:right}
+  tbody td{font-family:'JetBrains Mono',monospace;font-size:13px;padding:9px 15px;
+    border-bottom:1px solid rgba(38,38,58,.5)}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:first-child td{background:var(--panel2)}
+  .badge{display:inline-block;font-size:9px;letter-spacing:.06em;color:#fff;
+    background:linear-gradient(135deg,var(--grad-a),var(--grad-b));
+    border-radius:100px;padding:2px 7px;margin-left:8px;font-family:'Outfit'}
+  .more{align-self:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    color:var(--muted);padding:9px 18px;cursor:pointer;font-size:12px;font-family:'Outfit';font-weight:600}
+  .more:hover{color:var(--text)}
+
+  footer{color:var(--muted);font-size:11px;line-height:1.7;text-align:center;margin-top:8px}
+  footer a{color:var(--grad-a);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="logo">#tracker</span>
+    <span class="tagline">suivi du volume de publications Instagram</span>
+    <span class="status"><span class="dot" id="dot"></span><span id="statusText">connexion…</span></span>
+  </header>
+
+  <div class="msg" id="msg"></div>
+  <div class="tags" id="tagBar"></div>
+
+  <div class="hero" id="hero" hidden>
+    <span class="sym" id="sym"></span>
+    <span class="price" id="price"></span>
+    <span class="chg" id="chg"></span>
+  </div>
+
+  <div class="stats" id="stats" hidden>
+    <div class="stat"><div class="k">Δ 24 h</div><div class="v" id="s24">—</div></div>
+    <div class="stat"><div class="k">Vélocité</div><div class="v" id="sVel">—</div></div>
+    <div class="stat"><div class="k">Plus haut / bas</div><div class="v" id="sHL">—</div></div>
+    <div class="stat"><div class="k">Relevés</div><div class="v" id="sN">—</div></div>
+    <div class="stat"><div class="k">Période suivie</div><div class="v" id="sSpan">—</div></div>
+    <div class="stat"><div class="k">Dernier relevé</div><div class="v" id="sLast">—</div></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="tf" id="tfBar"></div>
+    <div class="ctype">
+      <button id="btnLine" class="on" onclick="setCType('line')">Ligne</button>
+      <button id="btnCandle" onclick="setCType('candle')">Bougies</button>
+      <button id="btnDelta" onclick="setCType('delta')">Δ / barre</button>
+    </div>
+  </div>
+
+  <div class="chartbox">
+    <div id="chart"></div>
+    <div class="empty" id="empty">Chargement…</div>
+  </div>
+
+  <div class="section-title">Derniers relevés</div>
+  <table id="tbl" hidden>
+    <thead><tr><th>Date</th><th>Heure</th><th class="num">Publications</th><th class="num">Δ</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <button class="more" id="moreBtn" onclick="showMore()" hidden>Afficher plus</button>
+
+  <footer>
+    Données publiques mises à jour automatiquement · source :
+    <a href="https://github.com/florian40350/hashtag-data" target="_blank" rel="noopener">github.com/florian40350/hashtag-data</a><br>
+    La courbe démarre au premier relevé — Instagram ne fournit pas d'historique rétroactif.
+  </footer>
+</div>
+
+<script>
+/* ===================== CONFIG ===================== */
+const DATA_URL = 'https://raw.githubusercontent.com/florian40350/hashtag-data/main/history.json';
+const REFRESH_MS = 60000;      // rechargement auto toutes les 60 s
+const PAGE_SIZE = 40;
+
+/* ===================== ÉTAT ===================== */
+const TFS = [
+  {label:'1m',sec:60},{label:'5m',sec:300},{label:'15m',sec:900},
+  {label:'1h',sec:3600},{label:'4h',sec:14400},
+  {label:'D',sec:86400},{label:'W',sec:604800},
+];
+let allData={}, currentTag=null, currentTF='15m', cType='line', shown=PAGE_SIZE;
+let chart, mainSeries;
+
+const $=id=>document.getElementById(id);
+const fmt=n=>n.toLocaleString('fr-FR');
+const setMsg=(t,c='')=>{$('msg').textContent=t;$('msg').className='msg '+c;};
+const setStatus=(t,ok=true)=>{$('statusText').textContent=t;$('dot').className='dot'+(ok?'':' off');};
+
+/* ===================== TIMEFRAMES ===================== */
+const tfBar=$('tfBar');
+TFS.forEach(tf=>{
+  const b=document.createElement('button');
+  b.textContent=tf.label; b.className=tf.label===currentTF?'on':'';
+  b.onclick=()=>{currentTF=tf.label;
+    tfBar.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.textContent===tf.label));
+    render();};
+  tfBar.appendChild(b);
+});
+
+/* ===================== AGRÉGATION ===================== */
+function toLocalEpoch(iso){
+  // Les timestamps sont en heure LOCALE sans fuseau (datetime.now() de Python).
+  // lightweight-charts affiche l'axe en UTC : on décale donc de l'offset local
+  // pour que l'heure affichée sur le graphique corresponde à l'heure réelle.
+  const d = new Date(iso);
+  return Math.floor((d.getTime() - d.getTimezoneOffset()*60000)/1000);
+}
+function aggregate(series,tfSec){
+  const buckets=new Map();
+  for(const p of series){
+    const t=toLocalEpoch(p.timestamp);
+    const b=Math.floor(t/tfSec)*tfSec;
+    if(!buckets.has(b)) buckets.set(b,{time:b,open:p.count,high:p.count,low:p.count,close:p.count});
+    else{ const o=buckets.get(b); o.high=Math.max(o.high,p.count); o.low=Math.min(o.low,p.count); o.close=p.count; }
+  }
+  return [...buckets.values()].sort((a,b)=>a.time-b.time);
+}
+
+/* ===================== CHART ===================== */
+function initChart(){
+  chart=LightweightCharts.createChart($('chart'),{
+    layout:{background:{type:'solid',color:'transparent'},textColor:'#7E7B96',
+            fontFamily:'JetBrains Mono, monospace',fontSize:11},
+    grid:{vertLines:{color:'rgba(38,38,58,.5)'},horzLines:{color:'rgba(38,38,58,.5)'}},
+    rightPriceScale:{borderColor:'#26263A'},
+    timeScale:{borderColor:'#26263A',timeVisible:true,secondsVisible:false},
+    crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+    localization:{locale:'fr-FR',priceFormatter:p=>fmt(Math.round(p))},
+    autoSize:true,
+  });
+}
+function render(){
+  const series=allData[currentTag]||[];
+  if(!series.length){$('empty').style.display='flex';$('empty').textContent='Aucune donnée.';return;}
+  $('empty').style.display='none';
+  const tf=TFS.find(t=>t.label===currentTF);
+  const ohlc=aggregate(series,tf.sec);
+  if(mainSeries){chart.removeSeries(mainSeries);mainSeries=null;}
+  if(cType==='candle'){
+    mainSeries=chart.addCandlestickSeries({
+      upColor:'#26A69A', downColor:'#EF5350', borderVisible:false,
+      wickUpColor:'#26A69A', wickDownColor:'#EF5350'});
+    mainSeries.setData(ohlc);
+  }else if(cType==='delta'){
+    mainSeries=chart.addHistogramSeries({priceFormat:{type:'volume'}});
+    mainSeries.setData(ohlc.map((c,i)=>{
+      const d=i===0?0:c.close-ohlc[i-1].close;
+      return {time:c.time,value:d,color:d>=0?'#26A69A':'#EF5350'};
+    }));
+  }else{
+    mainSeries=chart.addAreaSeries({lineColor:'#E1306C',
+      topColor:'rgba(225,48,108,.28)',bottomColor:'rgba(247,119,55,0)',lineWidth:2});
+    mainSeries.setData(ohlc.map(c=>({time:c.time,value:c.close})));
+  }
+  chart.timeScale().fitContent();
+  renderStats(series);
+  renderTable(series);
+}
+
+/* ===================== STATS ===================== */
+function renderStats(series){
+  const first=series[0], last=series[series.length-1];
+  $('hero').hidden=false; $('stats').hidden=false;
+  $('sym').textContent='#'+currentTag;
+  $('price').textContent=fmt(last.count);
+  const d=last.count-first.count, pct=first.count?(d/first.count*100):0;
+  const chg=$('chg');
+  chg.textContent=(d>=0?'+':'')+fmt(d)+' ('+(d>=0?'+':'')+pct.toFixed(4)+'%)';
+  chg.className='chg '+(d>0?'pos':d<0?'neg':'flat');
+
+  // Δ 24h
+  const cutoff=new Date(last.timestamp).getTime()-86400000;
+  const ref=series.find(p=>new Date(p.timestamp).getTime()>=cutoff)||first;
+  const d24=last.count-ref.count;
+  const e24=$('s24'); e24.textContent=(d24>=0?'+':'')+fmt(d24);
+  e24.className='v '+(d24>0?'pos':d24<0?'neg':'flat');
+
+  const hours=(new Date(last.timestamp)-new Date(first.timestamp))/3.6e6;
+  $('sVel').innerHTML=hours>0?fmt(Math.round(d/hours))+' <small>posts/h</small>':'—';
+  const counts=series.map(p=>p.count);
+  $('sHL').textContent=fmt(Math.max(...counts))+' / '+fmt(Math.min(...counts));
+  $('sN').textContent=series.length;
+  $('sSpan').innerHTML=hours>=48?Math.round(hours/24)+' <small>jours</small>':
+    hours>=1?Math.round(hours)+' <small>heures</small>':Math.round(hours*60)+' <small>min</small>';
+  $('sLast').textContent=new Date(last.timestamp).toLocaleString('fr-FR',
+    {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+
+/* ===================== TABLE ===================== */
+function renderTable(series){
+  const desc=series.slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+  $('tbl').hidden=false;
+  const rows=$('rows'); rows.innerHTML='';
+  const slice=desc.slice(0,shown);
+  for(let i=0;i<slice.length;i++){
+    const p=slice[i], prev=desc[i+1];
+    const d=prev?p.count-prev.count:null;
+    const dt=new Date(p.timestamp);
+    const cls=d===null?'flat':d>0?'pos':d<0?'neg':'flat';
+    const tr=document.createElement('tr');
+    tr.innerHTML=
+      '<td>'+dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'})+'</td>'+
+      '<td>'+dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+
+        (i===0?'<span class="badge">DERNIER</span>':'')+'</td>'+
+      '<td class="num">'+fmt(p.count)+'</td>'+
+      '<td class="num '+cls+'">'+(d===null?'—':(d>=0?'+':'')+fmt(d))+'</td>';
+    rows.appendChild(tr);
+  }
+  $('moreBtn').hidden = shown>=desc.length;
+}
+function showMore(){shown+=PAGE_SIZE; render();}
+
+function setCType(t){
+  cType=t;
+  $('btnLine').classList.toggle('on',t==='line');
+  $('btnCandle').classList.toggle('on',t==='candle');
+  $('btnDelta').classList.toggle('on',t==='delta');
+  render();
+}
+
+/* ===================== TAGS ===================== */
+function buildTagBar(){
+  const bar=$('tagBar'); bar.innerHTML='';
+  for(const tag of Object.keys(allData)){
+    const b=document.createElement('button');
+    b.textContent='#'+tag; b.className=tag===currentTag?'on':'';
+    b.onclick=()=>{currentTag=tag; shown=PAGE_SIZE;
+      bar.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.textContent==='#'+tag));
+      render();};
+    bar.appendChild(b);
+  }
+}
+
+/* ===================== CHARGEMENT ===================== */
+async function loadData(){
+  try{
+    const r=await fetch(DATA_URL+'?t='+Date.now(),{cache:'no-store'});
+    if(!r.ok){ if(r.status===404) throw new Error('history.json introuvable dans le dépôt.');
+      throw new Error('Erreur HTTP '+r.status); }
+    allData=await r.json();
+    const tags=Object.keys(allData);
+    if(!tags.length) throw new Error('Aucune donnée publiée pour le moment.');
+    if(!currentTag||!allData[currentTag]) currentTag=tags[0];
+    buildTagBar(); render(); setMsg('');
+    setStatus('à jour · '+new Date().toLocaleTimeString('fr-FR'), true);
+  }catch(e){ setMsg(e.message,'err'); setStatus('hors ligne', false); }
+}
+
+/* ===================== INIT ===================== */
+initChart();
+loadData();
+setInterval(loadData, REFRESH_MS);
+</script>
+</body>
+</html>
