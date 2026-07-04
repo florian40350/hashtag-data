@@ -1,0 +1,50 @@
+name: Track Instagram hashtags
+
+# Déclenchement automatique toutes les 15 minutes + bouton manuel
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # toutes les 15 min (voir note dans le message)
+  workflow_dispatch:          # permet de lancer à la main depuis l'onglet Actions
+
+# Autorise le workflow à écrire dans le dépôt (pour committer history.json)
+permissions:
+  contents: write
+
+# Empêche deux exécutions simultanées (évite les conflits sur history.json)
+concurrency:
+  group: tracker
+  cancel-in-progress: false
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installer les dépendances
+        run: pip install requests
+
+      - name: Relever les hashtags
+        env:
+          IG_SESSIONID:  ${{ secrets.IG_SESSIONID }}
+          IG_CSRFTOKEN:  ${{ secrets.IG_CSRFTOKEN }}
+          IG_DS_USER_ID: ${{ secrets.IG_DS_USER_ID }}
+        run: python track.py
+
+      - name: Committer les nouvelles données
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add history.json
+          if git diff --staged --quiet; then
+            echo "Aucun changement à committer."
+          else
+            git commit -m "relevé $(date -u '+%Y-%m-%d %H:%M UTC')"
+            git push
+          fi
