@@ -3,7 +3,7 @@ name: Track Instagram hashtags
 # Déclenchement automatique toutes les 15 minutes + bouton manuel
 on:
   schedule:
-    - cron: "*/5 * * * *"   # toutes les 15 min (voir note dans le message)
+    - cron: "*/15 * * * *"   # toutes les 15 min (voir note dans le message)
   workflow_dispatch:          # permet de lancer à la main depuis l'onglet Actions
 
 # Autorise le workflow à écrire dans le dépôt (pour committer history.json)
