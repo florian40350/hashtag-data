@@ -175,7 +175,7 @@
        révèle les accélérations, les ralentissements et les vagues d'attention autour d'un sujet —
        affichée ici avec les outils d'un terminal de trading (bougies, timeframes, moyennes mobiles).</p>
     <div class="points">
-      <span class="pt">⏱ relevé automatique ~5 min</span>
+      <span class="pt">⏱ relevé automatique</span>
       <span class="pt">📊 timeframes 1m → semaine</span>
       <span class="pt">🕯 bougies · aire · baseline</span>
       <span class="pt">🔓 données publiques &amp; libres</span>
@@ -380,6 +380,22 @@ function aggregate(series,tfSec){
   }
   return [...buckets.values()].sort((a,b)=>a.time-b.time);
 }
+// Complète TOUS les créneaux du timeframe : les buckets manquants deviennent
+// des points "vides" (whitespace) → visibles comme des trous sur la courbe.
+function fillGaps(ohlc, tfSec){
+  if(ohlc.length < 2) return ohlc.map(c=>({...c, _has:true}));
+  const out=[];
+  const first=ohlc[0].time, last=ohlc[ohlc.length-1].time;
+  const byTime=new Map(ohlc.map(c=>[c.time,c]));
+  // garde-fou perf : si trop de créneaux, on n'affiche que les points réels
+  const slots=(last-first)/tfSec;
+  if(slots > 6000) return ohlc.map(c=>({...c, _has:true}));
+  for(let t=first; t<=last; t+=tfSec){
+    if(byTime.has(t)) out.push({...byTime.get(t), _has:true});
+    else out.push({time:t, _has:false});   // créneau vide (trou)
+  }
+  return out;
+}
 function sma(ohlc,period){
   const out=[];
   for(let i=period-1;i<ohlc.length;i++){
@@ -416,17 +432,24 @@ function render(){
   $('empty').style.display='none';
   const tf=TFS.find(t=>t.label===currentTF);
   const ohlc=aggregate(series,tf.sec);
+  const filled=fillGaps(ohlc, tf.sec);   // tous les créneaux, trous inclus
   if(mainSeries){chart.removeSeries(mainSeries);mainSeries=null;}
   if(smaSeries){chart.removeSeries(smaSeries);smaSeries=null;}
 
   if(cType==='candle'){
     mainSeries=chart.addCandlestickSeries({upColor:'#26A69A',downColor:'#EF5350',
       borderVisible:false,wickUpColor:'#26A69A',wickDownColor:'#EF5350'});
-    mainSeries.setData(ohlc);
+    // créneau plein → bougie ; créneau vide → whitespace {time}
+    mainSeries.setData(filled.map(c=> c._has
+      ? {time:c.time,open:c.open,high:c.high,low:c.low,close:c.close}
+      : {time:c.time}));
   }else if(cType==='delta'){
     mainSeries=chart.addHistogramSeries({priceFormat:{type:'volume'}});
-    mainSeries.setData(ohlc.map((c,i)=>{
-      const d=i===0?0:c.close-ohlc[i-1].close;
+    let prevClose=null;
+    mainSeries.setData(filled.map(c=>{
+      if(!c._has) return {time:c.time};              // trou visible
+      const d = prevClose===null ? 0 : c.close-prevClose;
+      prevClose=c.close;
       return {time:c.time,value:d,color:d>=0?'#26A69A':'#EF5350'};
     }));
   }else if(cType==='baseline'){
@@ -435,14 +458,14 @@ function render(){
       topLineColor:'#26A69A',topFillColor1:'rgba(38,166,154,.28)',topFillColor2:'rgba(38,166,154,0)',
       bottomLineColor:'#EF5350',bottomFillColor1:'rgba(239,83,80,0)',bottomFillColor2:'rgba(239,83,80,.28)',
       lineWidth:2});
-    mainSeries.setData(ohlc.map(c=>({time:c.time,value:c.close})));
+    mainSeries.setData(filled.map(c=> c._has?{time:c.time,value:c.close}:{time:c.time}));
   }else if(cType==='line'){
     mainSeries=chart.addLineSeries({color:'#E1306C',lineWidth:2});
-    mainSeries.setData(ohlc.map(c=>({time:c.time,value:c.close})));
+    mainSeries.setData(filled.map(c=> c._has?{time:c.time,value:c.close}:{time:c.time}));
   }else{
     mainSeries=chart.addAreaSeries({lineColor:'#E1306C',
       topColor:'rgba(225,48,108,.28)',bottomColor:'rgba(247,119,55,0)',lineWidth:2});
-    mainSeries.setData(ohlc.map(c=>({time:c.time,value:c.close})));
+    mainSeries.setData(filled.map(c=> c._has?{time:c.time,value:c.close}:{time:c.time}));
   }
 
   if(showSMA && cType!=='delta' && ohlc.length>=SMA_PERIOD){
