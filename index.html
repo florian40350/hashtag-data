@@ -155,11 +155,64 @@
   @media (prefers-reduced-motion: reduce){
     *{animation:none!important;transition:none!important}
   }
+
+  /* ===== écran d'accueil (overlay) ===== */
+  #intro-screen{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+    padding:clamp(16px,5vw,40px);
+    background:radial-gradient(ellipse at 50% 20%, rgba(225,48,108,.10), transparent 55%),
+               radial-gradient(ellipse at 80% 100%, rgba(247,119,55,.08), transparent 55%),
+               rgba(13,13,20,.86);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    transition:opacity .6s ease, visibility .6s}
+  #intro-screen.hide{opacity:0;visibility:hidden}
+  .intro-card{max-width:620px;width:100%;padding:clamp(24px,5vw,40px);text-align:center;
+    animation:introRise .7s cubic-bezier(.2,.8,.2,1) both}
+  @keyframes introRise{from{opacity:0;transform:translateY(24px) scale(.98)}to{opacity:1;transform:none}}
+  .intro-card .brand{font-family:'Unbounded',sans-serif;font-weight:700;font-size:clamp(30px,9vw,46px);
+    background:linear-gradient(90deg,var(--grad-a),var(--grad-b));
+    -webkit-background-clip:text;background-clip:text;color:transparent;margin-bottom:6px;
+    filter:drop-shadow(0 0 20px rgba(225,48,108,.35))}
+  .intro-card .lead{font-family:'Unbounded',sans-serif;font-weight:600;font-size:clamp(15px,4vw,19px);
+    line-height:1.4;margin-bottom:16px}
+  .intro-card .lead .hl{background:linear-gradient(90deg,var(--grad-a),var(--grad-b));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .intro-card p{color:var(--muted);font-size:14px;font-weight:300;line-height:1.7;
+    max-width:520px;margin:0 auto 20px}
+  .intro-card .points{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:28px}
+  .intro-card .pt{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);
+    border:1px solid var(--line);border-radius:100px;padding:6px 13px;background:var(--panel2)}
+  .enter-btn{font-family:'Outfit',sans-serif;font-weight:600;font-size:16px;color:#fff;
+    border:none;border-radius:14px;padding:15px 38px;cursor:pointer;
+    background:linear-gradient(135deg,var(--grad-a),var(--grad-b));
+    box-shadow:0 8px 30px rgba(225,48,108,.4);transition:transform .2s, box-shadow .2s}
+  .enter-btn:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(225,48,108,.55)}
+  .enter-btn:active{transform:translateY(0)}
+  .intro-card .sub{margin-top:16px;font-size:11px;color:var(--muted)}
 </style>
 </head>
 <body>
 <canvas id="bg3d"></canvas>
 <div class="vignette"></div>
+
+<!-- ÉCRAN D'ACCUEIL -->
+<div id="intro-screen">
+  <div class="intro-card">
+    <div class="brand">#tracker</div>
+    <div class="lead">Le <span class="hl">volume de publications Instagram</span>, suivi comme un actif financier.</div>
+    <p>Ce site mesure automatiquement, jour et nuit, le nombre total de publications
+       des hashtags suivis. Chaque relevé devient un point de donnée : la courbe qui en résulte
+       révèle les accélérations, les ralentissements et les vagues d'attention autour d'un sujet —
+       affichée avec les outils d'un terminal de trading.</p>
+    <div class="points">
+      <span class="pt">⏱ relevé automatique</span>
+      <span class="pt">📊 timeframes 1m → semaine</span>
+      <span class="pt">🕯 bougies · aire · baseline</span>
+      <span class="pt">🔓 données publiques &amp; libres</span>
+    </div>
+    <button class="enter-btn" onclick="enterSite()">Entrer sur le dashboard →</button>
+    <div class="sub">Données publiques · mises à jour automatiquement</div>
+  </div>
+</div>
 
 <div class="wrap">
   <header class="glass tilt" data-tilt>
@@ -167,20 +220,6 @@
     <span class="tagline">suivi du volume de publications Instagram</span>
     <span class="status"><span class="dot" id="dot"></span><span id="statusText">connexion…</span></span>
   </header>
-
-  <section class="intro glass tilt" data-tilt>
-    <h1>Le <span class="hl">volume de publications Instagram</span>, suivi comme un actif financier.</h1>
-    <p>Ce site mesure automatiquement, jour et nuit, le nombre total de publications
-       des hashtags suivis. Chaque relevé devient un point de donnée : la courbe qui en résulte
-       révèle les accélérations, les ralentissements et les vagues d'attention autour d'un sujet —
-       affichée ici avec les outils d'un terminal de trading (bougies, timeframes, moyennes mobiles).</p>
-    <div class="points">
-      <span class="pt">⏱ relevé automatique</span>
-      <span class="pt">📊 timeframes 1m → semaine</span>
-      <span class="pt">🕯 bougies · aire · baseline</span>
-      <span class="pt">🔓 données publiques &amp; libres</span>
-    </div>
-  </section>
 
   <div class="msg" id="msg"></div>
   <div class="tags scroller" id="tagBar"></div>
@@ -326,6 +365,13 @@
    DONNÉES + CHART (logique identique)
    ========================================================= */
 const DATA_URL = 'https://raw.githubusercontent.com/florian40350/hashtag-data/main/history.json';
+
+/* ===== écran d'accueil ===== */
+function enterSite(){
+  const s=document.getElementById('intro-screen');
+  s.classList.add('hide');
+  setTimeout(()=>{ s.style.display='none'; if(chart) chart.timeScale().fitContent(); }, 600);
+}
 // N'afficher les données qu'à partir de cette date (mettre null pour tout afficher)
 const DATA_START = '2026-07-04T12:00:00';
 const REFRESH_MS = 60000;
